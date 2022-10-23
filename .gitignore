@@ -50,3 +50,11 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# binary folder
+/binary/
+
+# exlipse project folder/files
+/.settings/
+/.cproject
+/.project

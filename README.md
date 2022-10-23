@@ -1,2 +1,2 @@
 # C-Hacker
-Checker for C
+the C-Hacker is the Checker for C
