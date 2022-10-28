@@ -2,8 +2,7 @@
  * c-hacker-set-mode.h
  *
  * including this file will set the mode to the current C_HACKER_MODE
- * if C_HACKER_MODE is not set C_HACKER_MODE_DEFAULT will be used
- * C_HACKER_MODE_DEFAULT should never be C_HACKER_MODE_CUSTOM
+ * if C_HACKER_MODE is not set C_HACKER_MODE_LIBARY will be used
  *
  *  Created on: Oct 23, 2022
  *      Author: pat

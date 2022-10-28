@@ -4,7 +4,7 @@ LDFLAGS =
 
 CHECKLDFLAGS = 
 
-EXELDFLAGS = 
+EXELDFLAGS = -ldl
 
 CC = gcc
 
