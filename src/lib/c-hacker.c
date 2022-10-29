@@ -17,4 +17,10 @@
 #define CH_IMPL(impl)                                   _CH_SI_IMPL(impl)
 #define CH_ERROR(msg,file_name,line_num,value_str,code) _CH_L_ERROR(msg,file_name,line_num,value_str,code)
 
+#include <stdio.h>
+#include <stdint-gcc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "../../include/c-hacker.h"

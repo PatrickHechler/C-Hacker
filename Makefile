@@ -2,7 +2,7 @@ PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 LDFLAGS = 
 
-CHECKLDFLAGS = 
+CHECKLDFLAGS = -L$(BIN_ROOT) -lc-hacker
 
 EXELDFLAGS = -ldl
 
@@ -47,7 +47,7 @@ TARGET_A = $(BIN_ROOT)libc-hacker.a
 
 TARGET_SO = $(BIN_ROOT)libc-hacker.so
 
-CHECK_TARGET = $(CHECK_BIN)c-hacker-checks
+CHECK_TARGET = $(CHECK_BIN)c-hacker-checks.so
 
 EXE_OBJS = $(EXE_BIN)c-hacker.o
 
@@ -77,8 +77,8 @@ INIT_EXE:
 INIT_LIB:
 	mkdir -p $(LIB_BIN)
 
-$(CHECK_TARGET):	INIT_CHECK $(CHECK_OBJS)
-	$(CC) -shared -o $@ $(LDFLAGS) $(CHECK_OBJS)
+$(CHECK_TARGET):	INIT_CHECK $(CHECK_OBJS) $(TARGET_SO)
+	$(CC) -shared -o $@ $(CHECKLDFLAGS) $(CHECK_OBJS)
 
 $(TARGET_EXE):	INIT_EXE $(EXE_OBJS)
 	$(CC) $(EXELDFLAGS) -o $(TARGET_EXE) $(EXE_OBJS)
@@ -91,6 +91,12 @@ $(TARGET_A):	INIT_LIB $(LIB_OBJS)
 
 $(BIN)%.o:	$(SOURCE)%.c
 	$(CC) -x c -c $(CFLAGS) -o $@ $<
+
+$(BIN)%.o:	$(SOURCE)%-.c # $(SOURCE)%-.c_
+	$(CC) -x c -E $(CFLAGS) -o $@.c $<
+	cp -T $<_ $@.c.c
+	remove-diamond-lines < $@.c >> $@.c.c
+	$(CC) -x c -c $(CFLAGS) -o $@ $@.c.c
 
 clean:
 	rm -frd $(PROJECT_ROOT)testout/ $(BIN_ROOT)

@@ -23,21 +23,21 @@
 #define CH_PARAMS(params)                                _CH_L_PARAMS(params)
 #define CH_PN(name)                                      _CH_L_PN(name)
 #define CH_IMPL(impl)                                    _CH_L_IMPL(impl)
-#define CH_ERROR(msg,file_name,line_num,value_str)       _CH_L_ERROR(msg,file_name,line_num,value_str)
+#define CH_ERROR(msg,file_name,line_num,value_str,code)  _CH_L_ERROR(msg,file_name,line_num,value_str,code)
 #elif C_HACKER_MODE == C_HACKER_MODE_STATIC
 #define CH_VAR(var)                                      _CH_S_VAR(var)
 #define CH_PREFIX                                        _CH_S_PREFIX
 #define CH_PARAMS(params)                                _CH_S_PARAMS(params)
 #define CH_PN(name)                                      _CH_S_PN(name)
 #define CH_IMPL(impl)                                    _CH_S_IMPL(impl)
-#define CH_ERROR                                         _CH_S_ERROR(msg,file_name,line_num,value_str)
+#define CH_ERROR(msg,file_name,line_num,value_str,code)  _CH_S_ERROR(msg,file_name,line_num,value_str,code)
 #elif C_HACKER_MODE == C_HACKER_MODE_STATIC_INLINE
 #define CH_VAR(var)                                      _CH_SI_VAR(var)
 #define CH_PREFIX                                        _CH_SI_PREFIX
 #define CH_PARAMS(params)                                _CH_SI_PARAMS(params)
 #define CH_PN(name)                                      _CH_SI_PN(name)
 #define CH_IMPL(impl)                                    _CH_SI_IMPL(impl)
-#define CH_ERROR(msg,file_name,line_num,value_str)       _CH_SI_ERROR(msg,file_name,line_num,value_str)
+#define CH_ERROR(msg,file_name,line_num,value_str,code)  _CH_SI_ERROR(msg,file_name,line_num,value_str,code)
 #elif C_HACKER_MODE == C_HACKER_MODE_CUSTOM
 #ifndef CH_VAR
 #error "C_HACKER_MODE=C_HACKER_MODE_CUSTOM, but CH_VAR is not defined!"

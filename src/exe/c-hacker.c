@@ -11,24 +11,43 @@
 #include <stdio.h>
 #include <dlfcn.h>
 #include <link.h>
+#include <setjmp.h>
+#include <string.h>
+
+#include "../../include/c-hacker-types.h"
 
 static void setup(int argc, char **argv);
-
 static void read_checks(void);
+static void execute_checks(void);
 
 static void *lib;
 
-static char **check_name;
-static void (**start_all_checks)(void);
-static void (**start_checks)(void);
-static void (**end_all_checks)(void);
-static void (**end_checks)(void);
-static void (**checks)(void);
+static void (**start_all_checks)(void) = NULL;
+static void (**start_checks)(void) = NULL;
+static void (**end_all_checks)(void) = NULL;
+static void (**end_checks)(void) = NULL;
+static void (**checks)(void) = NULL;
+
+static int executed_check_count;
+static int good_check_count;
+
+static char **fail_msgs;
+
+static struct c_hacker_info info;
 
 int main(int argc, char **argv) {
 	setup(argc, argv);
-	read_cheks();
-	return 0;
+	read_checks();
+	execute_checks();
+	dlclose(lib);
+	fflush(NULL);
+	printf("executed %d checks, %d where good and %d failed.\n",
+			executed_check_count, good_check_count,
+			executed_check_count - good_check_count);
+	for (; *fail_msgs; ++fail_msgs) {
+		puts(*fail_msgs);
+	}
+	return executed_check_count - good_check_count;
 }
 
 static void setup(int argc, char **argv) {
@@ -39,14 +58,135 @@ static void setup(int argc, char **argv) {
 	if (argv[2]) {
 		fprintf(stderr, "too many args!\n");
 		exit(1);
-	}
-	lib = dlmopen(LM_ID_NEWLM, argv[1], RTLD_LAZY);
+	} // LM_ID_NEWLM
+	lib = dlmopen(LM_ID_BASE, argv[1], RTLD_LAZY | RTLD_LOCAL);
 	if (!lib) {
 		fprintf(stderr, "error on dlmopen: %s\n", dlerror());
 		exit(1);
 	}
+	struct c_hacker_info **local_info = dlsym(lib, "ch_inf");
+	*local_info = &info;
 }
 
+/*
+ * may be done better in the future, but this is compatible with all shared objects
+ * and does not require reading information of the ELF
+ * (the shared object API does not provide a function to get a symbol with an unknown name)
+ */
 static void read_checks(void) {
+	start_all_checks = malloc(sizeof(void*) * 2);
+	start_all_checks[0] = dlsym(lib, "start_all");
+	start_all_checks[1] = NULL;
+	start_checks = malloc(sizeof(void*) * 2);
+	start_checks[0] = dlsym(lib, "start");
+	start_checks[1] = NULL;
+	end_all_checks = malloc(sizeof(void*) * 2);
+	end_all_checks[0] = dlsym(lib, "end_all");
+	end_all_checks[1] = NULL;
+	end_checks = malloc(sizeof(void*) * 2);
+	end_checks[0] = dlsym(lib, "end");
+	end_checks[1] = NULL;
+	checks = dlsym(lib, "checks");
+}
 
+static const char* codestr(enum c_hacker_fail_code code) {
+	switch (code) {
+	case chf_none:
+		return "<NONE>";
+	case chf_fail_call:
+		return "<FAIL>";
+	case chf_equal:
+		return "<ASSERTED-EQUAL>";
+	case chf_not_equal:
+		return "<ASSERTED-NOT-EQUAL>";
+	case chf_greater:
+		return "<ASSERTED-GREATER>";
+	case chf_greater_equal:
+		return "<ASSERTED-NOT-GREATER>";
+	case chf_less_equal:
+		return "<ASSERTED-LESS-EQUAL>";
+	case chf_less:
+		return "<ASSERTED-LESS>";
+	case chf_zero:
+		return "<ASSERTED-ZERO>";
+	case chf_not_zero:
+		return "<ASSERTED-NOT-ZERO>";
+	case chf_positive:
+		return "<ASSERTED-POSITIVE>";
+	case chf_not_negative:
+		return "<ASSERTED-NOT-NEGATIVE>";
+	case chf_not_positive:
+		return "<ASSERTED-NOT-POSITIVE>";
+	case chf_negative:
+		return "<ASSERTED-NEGATIVE>";
+	case chf_str_equal:
+		return "<ASSERTED-STR-EQUAL>";
+	case chf_str_not_equal:
+		return "<ASSERTED-STR-NOT-EQUAL>";
+	case chf_mem_equal:
+		return "<ASSERTED-MEM-EQUAL>";
+	case chf_mem_not_equal:
+		return "<ASSERTED-MEM-NOT-EQUAL>";
+	case chf_fail:
+		return "<ASSERTED-FAIL>";
+	default:
+		size_t len = snprintf(NULL, 0, "<UNKNOWN: %X>", code);
+		char *res = malloc(len + 1);
+		snprintf(res, len + 1, "<UNKNOWN: %X>", code);
+		return res;
+	}
+}
+
+static void execute_checks(void) {
+	fail_msgs = malloc(sizeof(const char*));
+	fail_msgs[0] = NULL;
+	int failed_names_index = 0;
+	jmp_buf state;
+	info.state_pntr = &state;
+	executed_check_count = 0;
+	good_check_count = 0;
+	info.check_name = NULL;
+	for (void (**sa)(void) = start_all_checks; *sa; sa++) {
+		(*sa)();
+	}
+	for (void (**c)(void) = checks; *c; c++) {
+		info.check_name = "<unknown>";
+		enum c_hacker_fail_code res = setjmp(*info.state_pntr);
+		if (res == chf_none) {
+			for (void (**s)(void) = start_checks; *s; s++) {
+				(*s)();
+			}
+			(*c)();
+			for (void (**e)(void) = end_checks; *e; e++) {
+				(*e)();
+			}
+			good_check_count++;
+		} else {
+			const char *unformatted;
+			if (info.msg) {
+				unformatted = "    check '%s' failed with code: %s\n"
+				/*		    */"      failed at %s:%ld > %s\n"
+						/*  */"      msg: '%s'";
+			} else {
+				unformatted = "    check '%s' failed with code: %s\n"
+				/*		    */"      failed at %s:%ld > %s";
+			}
+			size_t len = snprintf(NULL, 0, unformatted, info.check_name,
+					codestr(res), info.file_name, info.line_num, info.val_str,
+					info.msg);
+			fail_msgs[failed_names_index] = malloc(len + 1);
+			snprintf(fail_msgs[failed_names_index], len + 1, unformatted,
+					info.check_name, codestr(res), info.file_name,
+					info.line_num, info.val_str, info.msg);
+			fail_msgs = realloc(fail_msgs,
+					sizeof(const char*) * (++failed_names_index));
+			fail_msgs[failed_names_index] = NULL;
+		}
+		fflush(stdout);
+		executed_check_count++;
+	}
+	info.check_name = NULL;
+	for (void (**ea)(void) = end_all_checks; *ea; ea++) {
+		(*ea)();
+	}
 }

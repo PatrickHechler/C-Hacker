@@ -1,0 +1,13 @@
+/*
+ * c-hacker-checks-.c_
+ *
+ *  Created on: Oct 29, 2022
+ *      Author: pat
+ */
+
+#include "../../../include/c-hacker-types.h"
+#include <stdio.h>
+#include <stdint-gcc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
