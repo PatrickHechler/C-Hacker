@@ -67,6 +67,7 @@ shared: INIT $(TARGET_SO)
 INIT:
 	echo build mode: $(BUILD_MODE)
 	mkdir -p $(PROJECT_ROOT)testout/
+	make -C ./post-pre-processor/ all
 
 INIT_CHECK:
 	mkdir -p $(CHECK_BIN)
@@ -95,8 +96,9 @@ $(BIN)%.o:	$(SOURCE)%.c
 $(BIN)%.o:	$(SOURCE)%-.c # $(SOURCE)%-.c_
 	$(CC) -x c -E $(CFLAGS) -o $@.c $<
 	cp -T $<_ $@.c.c
-	remove-diamond-lines < $@.c >> $@.c.c
+	$(PROJECT_ROOT)post-pre-processor/exports/post-pre-processor < $@.c >> $@.c.c
 	$(CC) -x c -c $(CFLAGS) -o $@ $@.c.c
 
 clean:
 	rm -frd $(PROJECT_ROOT)testout/ $(BIN_ROOT)
+	make -C ./post-pre-processor/ clean
