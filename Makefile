@@ -2,9 +2,9 @@ PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 LDFLAGS = 
 
-CHECKLDFLAGS = -L$(BIN_ROOT) -lc-hacker
+CHECKLDFLAGS = 
 
-EXELDFLAGS = -ldl
+EXELDFLAGS = -ldl -L$(EXP)shared/ -lc-hacker
 
 CC = gcc
 
@@ -22,6 +22,10 @@ else ifeq ($(BUILD_MODE),linuxtools)
 else
     $(error Build mode $(BUILD_MODE) not supported by this Makefile)
 endif
+
+PPP = $(PROJECT_ROOT)post-pre-processor/exports/post-pre-processor
+
+EXP = $(PROJECT_ROOT)exports/
 
 BIN_ROOT = $(PROJECT_ROOT)binary/
 
@@ -55,28 +59,36 @@ LIB_OBJS = $(LIB_BIN)c-hacker.o
 
 CHECK_OBJS = $(CHECK_BIN)c-hacker-checks.o
 
-all:	INIT $(CHECK_TARGET) $(TARGET_A) $(TARGET_SO) $(TARGET_EXE)
+all:	INIT $(PPP) check static shared exe
 	$(TARGET_EXE) $(CHECK_TARGET)
 
-exe: INIT $(TARGET_EXE)
+exe: INIT $(PPP) $(TARGET_EXE)
 
-static: INIT $(TARGET_A)
+static: INIT $(PPP) $(TARGET_A)
 
-shared: INIT $(TARGET_SO)
+shared: INIT $(PPP) $(TARGET_SO)
+
+check: INIT shared $(PPP) $(CHECK_TARGET)
 
 INIT:
 	echo build mode: $(BUILD_MODE)
-	mkdir -p $(PROJECT_ROOT)testout/
-	make -C ./post-pre-processor/ all
+	mkdir -p $(EXP)
+	ln --symbolic $(PROJECT_ROOT)include/ $(EXP)include
 
 INIT_CHECK:
 	mkdir -p $(CHECK_BIN)
 
 INIT_EXE:
 	mkdir -p $(EXE_BIN)
+	mkdir -p $(EXP)exe/
 
 INIT_LIB:
 	mkdir -p $(LIB_BIN)
+	mkdir -p $(EXP)shared/
+	mkdir -p $(EXP)static/
+
+$(PPP):
+	make -C $(PROJECT_ROOT)post-pre-processor/ all
 
 $(CHECK_TARGET):	INIT_CHECK $(CHECK_OBJS) $(TARGET_SO)
 	$(CC) -shared -o $@ $(CHECKLDFLAGS) $(CHECK_OBJS)
@@ -86,9 +98,11 @@ $(TARGET_EXE):	INIT_EXE $(EXE_OBJS)
 
 $(TARGET_SO):	INIT_LIB $(LIB_OBJS)
 	$(CC) -shared -o $@ $(LDFLAGS) $(LIB_OBJS)
+	ln --symbolic $(TARGET_SO) $(EXP)shared/libc-hacker.so
 
 $(TARGET_A):	INIT_LIB $(LIB_OBJS)
 	$(AR) -rc $@ $(OBJS)
+	ln --symbolic $(TARGET_SO) $(EXP)static/libc-hacker.a
 
 $(BIN)%.o:	$(SOURCE)%.c
 	$(CC) -x c -c $(CFLAGS) -o $@ $<
@@ -96,9 +110,9 @@ $(BIN)%.o:	$(SOURCE)%.c
 $(BIN)%.o:	$(SOURCE)%-.c # $(SOURCE)%-.c_
 	$(CC) -x c -E $(CFLAGS) -o $@.c $<
 	cp -T $<_ $@.c.c
-	$(PROJECT_ROOT)post-pre-processor/exports/post-pre-processor < $@.c >> $@.c.c
+	$(PPP) < $@.c >> $@.c.c
 	$(CC) -x c -c $(CFLAGS) -o $@ $@.c.c
 
 clean:
-	rm -frd $(PROJECT_ROOT)testout/ $(BIN_ROOT)
+	rm -frd $(PROJECT_ROOT)testout/ $(BIN_ROOT) $(EXP)
 	make -C ./post-pre-processor/ clean

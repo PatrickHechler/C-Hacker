@@ -33,7 +33,7 @@ static int good_check_count;
 
 static char **fail_msgs;
 
-static struct c_hacker_info info;
+ch_info ch_inf;
 
 int main(int argc, char **argv) {
 	setup(argc, argv);
@@ -59,13 +59,11 @@ static void setup(int argc, char **argv) {
 		fprintf(stderr, "too many args!\n");
 		exit(1);
 	} // LM_ID_NEWLM
-	lib = dlmopen(LM_ID_BASE, argv[1], RTLD_LAZY | RTLD_LOCAL);
+	lib = dlmopen(LM_ID_BASE, argv[1], RTLD_NOW | RTLD_GLOBAL);
 	if (!lib) {
 		fprintf(stderr, "error on dlmopen: %s\n", dlerror());
 		exit(1);
 	}
-	struct c_hacker_info **local_info = dlsym(lib, "ch_inf");
-	*local_info = &info;
 }
 
 /*
@@ -130,40 +128,45 @@ static const char* codestr(enum c_hacker_fail_code code) {
 	case chf_fail:
 		return "<ASSERTED-FAIL>";
 	default:
-		size_t len = snprintf(NULL, 0, "<UNKNOWN: %X>", code);
+		size_t len = snprintf(NULL, 0, "<UNKNOWN: 0x%X>", code);
 		char *res = malloc(len + 1);
-		snprintf(res, len + 1, "<UNKNOWN: %X>", code);
+		snprintf(res, len + 1, "<UNKNOWN: 0x%X>", code);
 		return res;
 	}
 }
 
 static void execute_checks(void) {
+	printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
 	fail_msgs = malloc(sizeof(const char*));
 	fail_msgs[0] = NULL;
 	int failed_names_index = 0;
 	jmp_buf state;
-	info.state_pntr = &state;
+	ch_inf.state_pntr = &state;
 	executed_check_count = 0;
 	good_check_count = 0;
-	info.check_name = NULL;
+	ch_inf.check_name = NULL;
 	for (void (**sa)(void) = start_all_checks; *sa; sa++) {
+		printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
 		(*sa)();
 	}
 	for (void (**c)(void) = checks; *c; c++) {
-		info.check_name = "<unknown>";
-		enum c_hacker_fail_code res = setjmp(*info.state_pntr);
+		ch_inf.check_name = "<unknown>";
+		enum c_hacker_fail_code res = setjmp(*ch_inf.state_pntr);
 		if (res == chf_none) {
 			for (void (**s)(void) = start_checks; *s; s++) {
+				printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
 				(*s)();
 			}
+			printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
 			(*c)();
 			for (void (**e)(void) = end_checks; *e; e++) {
+				printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
 				(*e)();
 			}
 			good_check_count++;
 		} else {
 			const char *unformatted;
-			if (info.msg) {
+			if (ch_inf.msg) {
 				unformatted = "    check '%s' failed with code: %s\n"
 				/*		    */"      failed at %s:%ld > %s\n"
 						/*  */"      msg: '%s'";
@@ -171,13 +174,13 @@ static void execute_checks(void) {
 				unformatted = "    check '%s' failed with code: %s\n"
 				/*		    */"      failed at %s:%ld > %s";
 			}
-			size_t len = snprintf(NULL, 0, unformatted, info.check_name,
-					codestr(res), info.file_name, info.line_num, info.val_str,
-					info.msg);
+			size_t len = snprintf(NULL, 0, unformatted, ch_inf.check_name,
+					codestr(res), ch_inf.file_name, ch_inf.line_num, ch_inf.val_str,
+					ch_inf.msg);
 			fail_msgs[failed_names_index] = malloc(len + 1);
 			snprintf(fail_msgs[failed_names_index], len + 1, unformatted,
-					info.check_name, codestr(res), info.file_name,
-					info.line_num, info.val_str, info.msg);
+					ch_inf.check_name, codestr(res), ch_inf.file_name,
+					ch_inf.line_num, ch_inf.val_str, ch_inf.msg);
 			fail_msgs = realloc(fail_msgs,
 					sizeof(const char*) * (++failed_names_index));
 			fail_msgs[failed_names_index] = NULL;
@@ -185,7 +188,7 @@ static void execute_checks(void) {
 		fflush(stdout);
 		executed_check_count++;
 	}
-	info.check_name = NULL;
+	ch_inf.check_name = NULL;
 	for (void (**ea)(void) = end_all_checks; *ea; ea++) {
 		(*ea)();
 	}
