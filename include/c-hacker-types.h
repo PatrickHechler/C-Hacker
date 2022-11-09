@@ -38,6 +38,13 @@ enum c_hacker_fail_code {
 	chf_fail, // chf_fail is used when assert_fail failed because a did not fail or failed with the wrong code
 };
 
+union ch_value {
+	const char *str;
+	const void *pntr;
+	long long numll;
+	long double numld;
+};
+
 struct c_hacker_info {
 	char *check_name;
 	const char *file_name;
@@ -45,8 +52,10 @@ struct c_hacker_info {
 	const char *val_str;
 	const char *msg;
 	jmp_buf *state_pntr;
+	union ch_value value_a;
+	union ch_value value_b;
 };
 
-typedef struct c_hacker_info *ch_info;
+typedef struct c_hacker_info ch_info;
 
 #endif /* INCLUDE_C_HACKER_TYPES_H_ */

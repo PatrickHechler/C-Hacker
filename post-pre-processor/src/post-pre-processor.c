@@ -14,7 +14,6 @@ int main(int argc, char **argv) {
 	size_t size = 128;
 	memset(line, '\0', size);
 	int deep = 0;
-	int is_first = 1;
 	while (1) {
 		signed long s = getline(&line, &size, stdin);
 		if (s <= 0) {
@@ -24,13 +23,14 @@ int main(int argc, char **argv) {
 			continue;
 		}
 		char c = '\0';
-		int weol = 0;
-		for (int i = 0; (line[i] != '\n') && (line[i] != '\0'); i++) {
+		_Bool weol = 0;
+		_Bool is_first = 1;
+		for (int i = 0; line[i] != '\n'; i++) {
 			switch (line[i]) {
 			case '{':
 			case '(':
 				if (c != '\0') {
-					putc(line[i], stdout);
+					fputc(line[i], stdout);
 					break;
 				}
 				if (is_first) {
@@ -40,37 +40,37 @@ int main(int argc, char **argv) {
 				}
 				is_first = 1;
 				deep++;
-				putc(line[i], stdout);
-				putc('\n', stdout);
+				fputc(line[i], stdout);
+				fputc('\n', stdout);
 				weol = 1;
 				break;
 			case ')':
 			case '}':
 				if (c != '\0') {
-					putc(line[i], stdout);
+					fputc(line[i], stdout);
 					break;
 				}
 				if (!is_first) {
-					putc('\n', stdout);
+					fputc('\n', stdout);
 					is_first = 0;
 				}
 				deep--;
 				for (int d = deep; d > 0; d--) {
-					putc('\t', stdout);
+					fputc('\t', stdout);
 				}
-				putc(line[i], stdout);
+				fputc(line[i], stdout);
 				break;
 			case ' ':
 			case '\t':
 				if (!is_first) {
-					putc(line[i], stdout);
+					fputc(line[i], stdout);
 				}
 				break;
 			case '\'':
 				if (is_first) {
 					is_first = 0;
 					for (int d = deep; d > 0; d--) {
-						putc('\t', stdout);
+						fputc('\t', stdout);
 					}
 				}
 				if (c == '\0') {
@@ -78,13 +78,13 @@ int main(int argc, char **argv) {
 				} else if (c == '\'') {
 					c = '\0';
 				}
-				putc(line[i], stdout);
+				fputc(line[i], stdout);
 				break;
 			case '"':
 				if (is_first) {
 					is_first = 0;
 					for (int d = deep; d > 0; d--) {
-						putc('\t', stdout);
+						fputc('\t', stdout);
 					}
 				}
 				if (c == '\0') {
@@ -92,18 +92,18 @@ int main(int argc, char **argv) {
 				} else if (c == '"') {
 					c = '\0';
 				}
-				putc(line[i], stdout);
+				fputc(line[i], stdout);
 				break;
 			case ';':
 			case ',':
 				if (is_first) {
 					for (int d = deep; d > 0; d--) {
-						putc('\t', stdout);
+						fputc('\t', stdout);
 					}
 				}
 				if (c != '\0') {
-					putc(line[i], stdout);
-					putc('\n', stdout);
+					fputc(line[i], stdout);
+					fputc('\n', stdout);
 					is_first = 1;
 					weol = 1;
 					break;
@@ -112,17 +112,16 @@ int main(int argc, char **argv) {
 			default:
 				if (is_first) {
 					for (int d = deep; d > 0; d--) {
-						putc('\t', stdout);
+						fputc('\t', stdout);
 					}
 				}
 				is_first = 0;
-				putc(line[i], stdout);
+				fputc(line[i], stdout);
 			}
 		}
 		if (!weol) {
-			putc('\n', stdout);
+			fputc('\n', stdout);
 		}
 		memset(line, '\0', size);
 	}
 }
-

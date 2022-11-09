@@ -36,25 +36,25 @@
 #define C_HACKER_MODE_CUSTOM        4
 
 // defines for mode=C_HACKER_MODE_LIBARY
-#define _CH_L_VAR(var)                                     extern var;
-#define _CH_L_PREFIX                                       extern void
-#define _CH_L_PARAMS(params)                               params
-#define _CH_L_PN(name)                                     name
-#define _CH_L_IMPL(impl)                                   ;
-#define _CH_L_ERROR(msg,file_name,line_num,value_str,code) ch_fail(msg, file_name, line_num, value_str, code);
+#define _CH_L_VAR(var)                                                extern var;
+#define _CH_L_PREFIX                                                  extern void
+#define _CH_L_PARAMS(params)                                          params
+#define _CH_L_PN(name)                                                name
+#define _CH_L_IMPL(impl)                                              ;
+#define _CH_L_ERROR(msg,file_name,line_num,value_str,code,a,aa,b,bb)  union ch_value _a, _b; _a . aa = a; _b . bb = b; ch_fail(msg, file_name, line_num, value_str, code,_b,_b);
 // defines for mode=C_HACKER_MODE_STATIC
-#define _CH_S_VAR(var)                                      static var;
-#define _CH_S_PREFIX                                        static void
-#define _CH_S_PARAMS(params)                                params
-#define _CH_S_PN(name)                                      name
-#define _CH_S_IMPL(impl)                                    { impl }
-#define _CH_S_ERROR(msg,file_name,line_num,value_str, code) ch_fail(msg, file_name, line_num, value_str, code);
+#define _CH_S_VAR(var)                                                extern var;
+#define _CH_S_PREFIX                                                  static void
+#define _CH_S_PARAMS(params)                                          params
+#define _CH_S_PN(name)                                                name
+#define _CH_S_IMPL(impl)                                              { impl }
+#define _CH_S_ERROR(msg,file_name,line_num,value_str,code,a,aa,b,bb)  union ch_value _a, _b; _a . aa = a; _b . bb = b; ch_fail(msg, file_name, line_num, value_str, code,_b,_b);
 // defines for mode=C_HACKER_MODE_STATIC_INLINE
-#define _CH_SI_VAR(var)                                      static var;
-#define _CH_SI_PREFIX                                        static inline void
-#define _CH_SI_PARAMS(params)                                params
-#define _CH_SI_PN(name)                                      name
-#define _CH_SI_IMPL(impl)                                    { impl }
-#define _CH_SI_ERROR(msg,file_name,line_num,value_str, code) _ch_fail(msg, file_name, line_num, value_str, code);
+#define _CH_SI_VAR(var)                                               extern var;
+#define _CH_SI_PREFIX                                                 static inline void
+#define _CH_SI_PARAMS(params)                                         params
+#define _CH_SI_PN(name)                                               name
+#define _CH_SI_IMPL(impl)                                             { impl }
+#define _CH_SI_ERROR(msg,file_name,line_num,value_str,code,a,aa,b,bb) union ch_value _a, _b; _a . aa = a; _b . bb = b; ch_fail(msg, file_name, line_num, value_str, code,_b,_b);
 
 #endif /* INCLUDE_C_HACKER_MODE_H_ */

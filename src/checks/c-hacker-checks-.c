@@ -5,9 +5,6 @@
  *      Author: pat
  */
 
-#include "../../include/c-hacker-mode.h"
-#define C_HACKER_MODE C_HACKER_MODE_STATIC
-#define C_HACKER_NO_TYPE_INCLUDE
 #include "../../include/c-hacker.h"
 
 void start_all() {
@@ -57,19 +54,19 @@ check(assert_equal_check)
 	assert_equal((char) 0, (long) 0);
 	assert_equal(0.0, 0.0);
 	assert_fail(assert_equal_fails0);
-	assert_equal(ch_inf->line_num, 32);
-	assert_str_equal(ch_inf->file_name, "/data/git/C-Hacker/src/checks/c-hacker-checks.c");
-	assert_str_equal(ch_inf->msg, NULL);
-	assert_str_equal(ch_inf->msg, "assert_equal(-8, 12)");
+	assert_equal(ch_inf.line_num, 34);
+	assert_str_equal(ch_inf.file_name, "/data/git/C-Hacker/src/checks/c-hacker-checks.c");
+	assert_str_equal(ch_inf.msg, NULL);
+	assert_str_equal(ch_inf.msg, "assert_equal(-8, 12)");
 	assert_fail(assert_equal_fails1);
-	assert_str_equal(ch_inf->val_str, "my message");
-	assert_equal(ch_inf->line_num, 36);
+	assert_str_equal(ch_inf.val_str, "my message");
+	assert_equal(ch_inf.line_num, 38);
 	assert_fail(assert_equal_fails2);
-	assert_equal(ch_inf->line_num, 40);
+	assert_equal(ch_inf.line_num, 42);
 	assert_fail(assert_equal_fails3);
-	assert_equal(ch_inf->line_num, 44);
+	assert_equal(ch_inf.line_num, 46);
 	assert_fail(assert_equal_fails4);
-	assert_equal(ch_inf->line_num, 48);
+	assert_equal(ch_inf.line_num, 50);
 }
 
 void (*checks[])(void) = {

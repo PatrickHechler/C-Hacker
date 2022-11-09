@@ -82,73 +82,76 @@
 #define _CH_CEPS(msg, value_str, code)	msg,					__FILE__, \
 	__LINE__,				value_str,						code
 
-CH_PREFIX ch_fail CH_PARAMS((_CH_EPS)) CH_IMPL (
-		if (!ch_inf || !ch_inf->state_pntr) {
+CH_PREFIX ch_fail CH_PARAMS((_CH_EPS, union ch_value CH_PN(a), union ch_value CH_PN(b))) CH_IMPL (
+		if (!ch_inf.state_pntr) {
 			fprintf(stderr, "[C-Hacker]: fail, but state is NULL!\n"
 					"[C-Hacker]: %s:%d > %s\n"
 					"[C-Hacker]: code=%d\n"
 					"[C-Hacker]: message=%s\n"
+					"[C-Hacker]: ch_inf=%p\n"
 					"[C-Hacker]: state=%p\n"
-					"[C-Hacker]: &state=%p\n"
-					"", file_name, line_num, value_str, code, msg,
-					ch_inf ? ch_inf->state_pntr : NULL, ch_inf ? &ch_inf->state_pntr : NULL);
+					"[C-Hacker]: val-a=%p=%lld=%llX\n"
+					"[C-Hacker]: val-a=%p=%lld=%llX\n"
+					"", file_name, line_num, value_str, code, msg, &ch_inf, ch_inf.state_pntr, a.pntr, a.numll, a.numll, b.pntr, b.numll, b.numll);
 			fflush(NULL);
 			abort();
 		} else {
-			ch_inf->file_name = file_name;
-			ch_inf->line_num = line_num;
-			ch_inf->val_str = value_str;
-			ch_inf->msg = msg;
-			longjmp(*ch_inf->state_pntr, code);
+			ch_inf.file_name = file_name;
+			ch_inf.line_num = line_num;
+			ch_inf.val_str = value_str;
+			ch_inf.msg = msg;
+			ch_inf.value_a = a;
+			ch_inf.value_b = b;
+			longjmp(*ch_inf.state_pntr, code);
 		}
 )
 
 #define _CH_DEC_FUNCS(name, impl_info) \
 		CH_PREFIX ch_assert_##name##_c \
 			CH_PARAMS((_CH_PARAM_START(char) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(char, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(char, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_s \
 			CH_PARAMS((_CH_PARAM_START(short) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(short, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(short, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_i \
 			CH_PARAMS((_CH_PARAM_START(int) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(int, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(int, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_l \
 			CH_PARAMS((_CH_PARAM_START(long) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(long, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(long, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_ll \
 			CH_PARAMS((_CH_PARAM_START(long long) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(long long, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(long long, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_f \
 			CH_PARAMS((_CH_PARAM_START(float) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(float, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(float, impl_info, chf_##name, numld)) \
 		CH_PREFIX ch_assert_##name##_d \
 			CH_PARAMS((_CH_PARAM_START(double) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(double, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(double, impl_info, chf_##name, numld)) \
 		CH_PREFIX ch_assert_##name##_ld \
 			CH_PARAMS((_CH_PARAM_START(long double) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(long double, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(long double, impl_info, chf_##name, numld)) \
 		CH_PREFIX ch_assert_##name##_p \
 			CH_PARAMS((_CH_PARAM_START(void *) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(void *, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(void *, impl_info, chf_##name, pntr)) \
 		CH_PREFIX ch_assert_##name##_i8 \
 			CH_PARAMS((_CH_PARAM_START(int8_t) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(int8_t, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(int8_t, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_i16 \
 			CH_PARAMS((_CH_PARAM_START(int16_t) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(int16_t, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(int16_t, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_i32 \
 			CH_PARAMS((_CH_PARAM_START(int32_t) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(int32_t, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(int32_t, impl_info, chf_##name, numll)) \
 		CH_PREFIX ch_assert_##name##_i64 \
 			CH_PARAMS((_CH_PARAM_START(int64_t) _CH_EPS)) \
-							CH_IMPL(_CH_DEF_IMPL(int64_t, impl_info, chf_##name)) \
+							CH_IMPL(_CH_DEF_IMPL(int64_t, impl_info, chf_##name, numll)) \
 
-#define _CH_ERR(code) CH_ERROR(msg,file_name,line_num,value_str,code)
-#define _CH_IMPL_IMPL(cond,code) if (cond) { _CH_ERR(code) }
+#define _CH_ERR(code,a,aa,b,bb) CH_ERROR(msg,file_name,line_num,value_str,code,a,aa,b,bb)
+#define _CH_IMPL_IMPL(cond,code,a,aa,b,bb) if (cond) { _CH_ERR(code,a,aa,b,bb) }
 
 #define _CH_PARAM_START(type) type CH_PN(a), type CH_PN(b),
-#define _CH_DEF_IMPL(type, op, code) _CH_IMPL_IMPL(a op b, code)
+#define _CH_DEF_IMPL(type, op, code, aa) _CH_IMPL_IMPL(a op b, code,a,aa,b,aa)
 
 _CH_DEC_FUNCS(equal, !=)
 _CH_DEC_FUNCS(not_equal, ==)
@@ -161,7 +164,7 @@ _CH_DEC_FUNCS(less, >=)
 #undef _CH_PARAM_START
 
 #define _CH_PARAM_START(type) type CH_PN(a),
-#define _CH_DEF_IMPL(type, op, code) _CH_IMPL_IMPL(a op ((type) 0), code)
+#define _CH_DEF_IMPL(type, op, code, aa) _CH_IMPL_IMPL(a op ((type) 0), code,a,aa,0,aa)
 
 _CH_DEC_FUNCS(zero, !=)
 _CH_DEC_FUNCS(not_zero, ==)
@@ -176,66 +179,66 @@ _CH_DEC_FUNCS(negative, >=)
 #undef _CH_DEC_FUNCS
 
 CH_PREFIX ch_assert_str_equal
-CH_PARAMS((const char *CH_PN(a), const char *CH_PN(b), _CH_EPS)) CH_IMPL(
-		_CH_IMPL_IMPL(a != b && (!a || !b || strcmp(a, b)), chf_str_equal)
+CH_PARAMS((const char *CH_PN(a), const char *CH_PN(b), _CH_EPS))
+CH_IMPL(
+		_CH_IMPL_IMPL(a != b && (!a || !b || strcmp(a, b)), chf_str_equal, a, str, b, str)
 )
 
 CH_PREFIX ch_assert_str_not_equal
-CH_PARAMS((const char *CH_PN(a), const char *CH_PN(b), _CH_EPS)) CH_IMPL(
-		_CH_IMPL_IMPL(a == b || !strcmp(a, b), chf_str_not_equal)
+CH_PARAMS((const char *CH_PN(a), const char *CH_PN(b), _CH_EPS))
+CH_IMPL(
+		_CH_IMPL_IMPL(a == b || !strcmp(a, b), chf_str_not_equal, a, str, b, str)
 )
 
 CH_PREFIX ch_assert_mem_equal
-		CH_PARAMS((const char *CH_PN(a), const char *CH_PN(b), size_t CH_PN(size), _CH_EPS)) CH_IMPL(
-		_CH_IMPL_IMPL(a != b && (!a || !b || memcmp(a, b, size)), chf_mem_equal)
+		CH_PARAMS(
+		(const char *CH_PN(a), const char *CH_PN(b), size_t CH_PN(size), _CH_EPS))
+CH_IMPL(
+		_CH_IMPL_IMPL(a != b && (!a || !b || memcmp(a, b, size)), chf_mem_equal, a, pntr, b, pntr)
 )
 
 CH_PREFIX ch_assert_mem_not_equal
-		CH_PARAMS((const char *CH_PN(a), const char *CH_PN(b), size_t CH_PN(size), _CH_EPS)) CH_IMPL(
-		_CH_IMPL_IMPL(a == b || !memcmp(a, b, size), chf_mem_not_equal)
+		CH_PARAMS(
+		(const char *CH_PN(a), const char *CH_PN(b), size_t CH_PN(size), _CH_EPS))
+CH_IMPL(
+		_CH_IMPL_IMPL(a == b || !memcmp(a, b, size), chf_mem_not_equal, a, pntr, b, pntr)
 )
 
 CH_PREFIX ch_assert_fail
 CH_PARAMS((void (*const CH_PN(a))(void), _CH_EPS))
 CH_IMPL(
-		/*	  */if (!ch_inf) {
-			/*	 */ch_inf = malloc(sizeof(struct c_hacker_info));
-			/**/}
-		/*	 */jmp_buf *old_state = ch_inf->state_pntr;
+		/*	 */jmp_buf *old_state = ch_inf.state_pntr;
 		/*	 */jmp_buf my_buf;
-		/*	 */ch_inf->state_pntr = &my_buf;
+		/*	 */ch_inf.state_pntr = &my_buf;
 		/*	 */int cond = setjmp(my_buf);
 		/*	 */if (cond) {
-			/*	*/ch_inf->state_pntr = old_state;
+			/*	*/ch_inf.state_pntr = old_state;
 			/*	*/return;/*
 			 */}
 		/*	 */a();
-		/*	 */ch_inf->state_pntr = old_state;
-		/*	 */_CH_ERR(chf_fail)
+		/*	 */ch_inf.state_pntr = old_state;
+		/*	 */_CH_ERR(chf_fail, 0, 0)
 )
 
 CH_PREFIX ch_assert_fail_with
-		CH_PARAMS((void (*const CH_PN(a))(void), const enum c_hacker_fail_code CH_PN(b), _CH_EPS))
-CH_IMPL(
-		/*	  */if (!ch_inf) {
-			/*	 */ch_inf->state_pntr = malloc(sizeof(struct c_hacker_info));
-			/**/}
-		/*	  */jmp_buf *old_state = ch_inf->state_pntr;
-		/*	  */jmp_buf my_buf;
-		/*	  */ch_inf->state_pntr = &my_buf;
-		/*	  */int fail_code = setjmp(my_buf);
-		/*	  */if (fail_code) {
-			/*	 	  */ch_inf->state_pntr = old_state;
-			/*	 	  */if (fail_code != b) {
-				/*	 	    */msg = msg ? msg : "wrong error code!";
-				/*	 		*/_CH_ERR(chf_fail)
-				/*	  */}
-			/*	 	  */return;
-			/**/}
-		/*	  */a();
-		/*	  */ch_inf->state_pntr = old_state;
-		/*	  */msg = msg ? msg : "did not fail!";
-		/*	  */_CH_ERR(chf_fail)
+		CH_PARAMS(
+		(void (*const CH_PN(a))(void), const enum c_hacker_fail_code CH_PN(b), _CH_EPS))CH_IMPL(
+/*	  */jmp_buf *old_state = ch_inf.state_pntr;
+/*	  */jmp_buf my_buf;
+/*	  */ch_inf.state_pntr = &my_buf;
+/*	  */int fail_code = setjmp(my_buf);
+/*	  */if (fail_code) {
+/*	 	  */ch_inf.state_pntr = old_state;
+/*	 	  */if (fail_code != b) {
+/*	 	    */msg = msg ? msg : "wrong error code!";
+/*	 		*/_CH_ERR(chf_fail, b, fail_code)
+/*	  */}
+/*	 	  */return;
+/**/}
+/*	  */a();
+/*	  */ch_inf.state_pntr = old_state;
+/*	  */msg = msg ? msg : "did not fail!";
+/*	  */_CH_ERR(chf_fail, b, 0)//
 )
 
 #define _CH_Gen1p(expr, ld, d, f, ll, l, i, s, c, p) \
@@ -350,8 +353,6 @@ CH_IMPL(
 #define assert_fail_withm(a, b, msg) ch_assert_fail_with(a, b, _CH_CEPS(msg, "assert_fail(" #a ")", chf_fail))
 
 #define check(name) void name(void) { \
-	if (ch_inf) { \
-		ch_inf->check_name = #name; \
-	}
+	ch_inf.check_name = #name; \
 
 #endif /* INCLUDE_C_HACKER_H_ */
