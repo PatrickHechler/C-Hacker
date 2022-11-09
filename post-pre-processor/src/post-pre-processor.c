@@ -12,7 +12,6 @@
 int main(int argc, char **argv) {
 	char *line = malloc(128);
 	size_t size = 128;
-	memset(line, '\0', size);
 	int deep = 0;
 	while (1) {
 		signed long s = getline(&line, &size, stdin);
@@ -122,6 +121,5 @@ int main(int argc, char **argv) {
 		if (!weol) {
 			fputc('\n', stdout);
 		}
-		memset(line, '\0', size);
 	}
 }
