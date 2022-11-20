@@ -58,3 +58,4 @@ dkms.conf
 /.settings/
 /.cproject
 /.project
+/exports/

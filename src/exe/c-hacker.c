@@ -1,195 +1,146 @@
 /*
  * c-hacker.c
  *
- *  Created on: Oct 23, 2022
+ *  Created on: Nov 20, 2022
  *      Author: pat
  */
 
 #define _GNU_SOURCE
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <dlfcn.h>
-#include <link.h>
-#include <setjmp.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <err.h>
+#include <errno.h>
+#include <stdio.h>
+#include <sys/wait.h>
 
-#include "../../include/c-hacker-types.h"
+static inline void setup(int, char**, char**, char**, char**);
+static inline void compile(char*, char*, char*);
+static inline void execute_check(char*);
+static inline void wait_for_normal_exit(pid_t pid);
+static inline void parse_check(const char *in, const char *out) __attribute__((noreturn));
 
-static void setup(int argc, char **argv);
-static void read_checks(void);
-static void execute_checks(void);
-
-static void *lib;
-
-static void (**start_all_checks)(void) = NULL;
-static void (**start_checks)(void) = NULL;
-static void (**end_all_checks)(void) = NULL;
-static void (**end_checks)(void) = NULL;
-static void (**checks)(void) = NULL;
-
-static int executed_check_count;
-static int good_check_count;
-
-static char **fail_msgs;
-
-ch_info ch_inf;
+static _Bool no_exe = 0;
+static _Bool use_static_c_hacker = 0;
+static _Bool generate_obj_file = 0;
+static _Bool no_include = 0;
+static const char *func_prefix = NULL;
 
 int main(int argc, char **argv) {
-	setup(argc, argv);
-	read_checks();
-	execute_checks();
-	dlclose(lib);
-	fflush(NULL);
-	printf("executed %d checks, %d where good and %d failed.\n",
-			executed_check_count, good_check_count,
-			executed_check_count - good_check_count);
-	for (; *fail_msgs; ++fail_msgs) {
-		puts(*fail_msgs);
-	}
-	return executed_check_count - good_check_count;
+	char *in, *out0, *out1;
+	setup(argc, argv, &in, &out0, &out1);
+	compile(in, out0, out1);
+	execute_check(out1);
 }
 
-static void setup(int argc, char **argv) {
-	if (!argv[1]) {
-		fprintf(stderr, "not enough args!\n");
+static inline void setup(int argc, char **argv, char **in, char **out0,
+		char **out1) {
+	if (argc < 3) {
+		fprintf(stderr,
+				"Usage: c-hacker [OPTIONS] TEST_SOURCE_FILE BINARY_FOLDER\n");
 		exit(1);
 	}
-	if (argv[2]) {
-		fprintf(stderr, "too many args!\n");
-		exit(1);
-	} // LM_ID_NEWLM
-	lib = dlmopen(LM_ID_BASE, argv[1], RTLD_NOW | RTLD_GLOBAL);
-	if (!lib) {
-		fprintf(stderr, "error on dlmopen: %s\n", dlerror());
-		exit(1);
-	}
-}
-
-/*
- * may be done better in the future, but this is compatible with all shared objects
- * and does not require reading information of the ELF
- * (the shared object API does not provide a function to get a symbol with an unknown name)
- */
-static void read_checks(void) {
-	start_all_checks = malloc(sizeof(void*) * 2);
-	start_all_checks[0] = dlsym(lib, "start_all");
-	start_all_checks[1] = NULL;
-	start_checks = malloc(sizeof(void*) * 2);
-	start_checks[0] = dlsym(lib, "start");
-	start_checks[1] = NULL;
-	end_all_checks = malloc(sizeof(void*) * 2);
-	end_all_checks[0] = dlsym(lib, "end_all");
-	end_all_checks[1] = NULL;
-	end_checks = malloc(sizeof(void*) * 2);
-	end_checks[0] = dlsym(lib, "end");
-	end_checks[1] = NULL;
-	checks = dlsym(lib, "checks");
-}
-
-static const char* codestr(enum c_hacker_fail_code code) {
-	switch (code) {
-	case chf_none:
-		return "<NONE>";
-	case chf_fail_call:
-		return "<FAIL>";
-	case chf_equal:
-		return "<ASSERTED-EQUAL>";
-	case chf_not_equal:
-		return "<ASSERTED-NOT-EQUAL>";
-	case chf_greater:
-		return "<ASSERTED-GREATER>";
-	case chf_greater_equal:
-		return "<ASSERTED-NOT-GREATER>";
-	case chf_less_equal:
-		return "<ASSERTED-LESS-EQUAL>";
-	case chf_less:
-		return "<ASSERTED-LESS>";
-	case chf_zero:
-		return "<ASSERTED-ZERO>";
-	case chf_not_zero:
-		return "<ASSERTED-NOT-ZERO>";
-	case chf_positive:
-		return "<ASSERTED-POSITIVE>";
-	case chf_not_negative:
-		return "<ASSERTED-NOT-NEGATIVE>";
-	case chf_not_positive:
-		return "<ASSERTED-NOT-POSITIVE>";
-	case chf_negative:
-		return "<ASSERTED-NEGATIVE>";
-	case chf_str_equal:
-		return "<ASSERTED-STR-EQUAL>";
-	case chf_str_not_equal:
-		return "<ASSERTED-STR-NOT-EQUAL>";
-	case chf_mem_equal:
-		return "<ASSERTED-MEM-EQUAL>";
-	case chf_mem_not_equal:
-		return "<ASSERTED-MEM-NOT-EQUAL>";
-	case chf_fail:
-		return "<ASSERTED-FAIL>";
-	default:
-		size_t len = snprintf(NULL, 0, "<UNKNOWN: 0x%X>", code);
-		char *res = malloc(len + 1);
-		snprintf(res, len + 1, "<UNKNOWN: 0x%X>", code);
-		return res;
-	}
-}
-
-static void execute_checks(void) {
-	printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
-	fail_msgs = malloc(sizeof(const char*));
-	fail_msgs[0] = NULL;
-	int failed_names_index = 0;
-	jmp_buf state;
-	ch_inf.state_pntr = &state;
-	executed_check_count = 0;
-	good_check_count = 0;
-	ch_inf.check_name = NULL;
-	for (void (**sa)(void) = start_all_checks; *sa; sa++) {
-		printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
-		(*sa)();
-	}
-	for (void (**c)(void) = checks; *c; c++) {
-		ch_inf.check_name = "<unknown>";
-		enum c_hacker_fail_code res = setjmp(*ch_inf.state_pntr);
-		if (res == chf_none) {
-			for (void (**s)(void) = start_checks; *s; s++) {
-				printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
-				(*s)();
-			}
-			printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
-			(*c)();
-			for (void (**e)(void) = end_checks; *e; e++) {
-				printf("[C-Hacker.execute_checks]: ch_inf.state_pntr=%p\n", ch_inf.state_pntr);
-				(*e)();
-			}
-			good_check_count++;
+	for (; argc > 3; argc--, argv++) {
+		if (strcmp("--no-exe", *argv)) {
+			no_exe = 1;
+		} else if (strcmp("--no-include", *argv)) {
+			no_include = 1;
+		} else if (strcmp("--static-c-hacker", *argv)) {
+			use_static_c_hacker = 1;
+		} else if (strcmp("--gen-obj", *argv)) {
+			generate_obj_file = 1;
+			no_exe = 1;
+		} else if (memcmp("--func-pre=", *argv, 11)) {
+			func_prefix = *argv + 11;
 		} else {
-			const char *unformatted;
-			if (ch_inf.msg) {
-				unformatted = "    check '%s' failed with code: %s\n"
-				/*		    */"      failed at %s:%ld > %s\n"
-						/*  */"      msg: '%s'";
-			} else {
-				unformatted = "    check '%s' failed with code: %s\n"
-				/*		    */"      failed at %s:%ld > %s";
-			}
-			size_t len = snprintf(NULL, 0, unformatted, ch_inf.check_name,
-					codestr(res), ch_inf.file_name, ch_inf.line_num, ch_inf.val_str,
-					ch_inf.msg);
-			fail_msgs[failed_names_index] = malloc(len + 1);
-			snprintf(fail_msgs[failed_names_index], len + 1, unformatted,
-					ch_inf.check_name, codestr(res), ch_inf.file_name,
-					ch_inf.line_num, ch_inf.val_str, ch_inf.msg);
-			fail_msgs = realloc(fail_msgs,
-					sizeof(const char*) * (++failed_names_index));
-			fail_msgs[failed_names_index] = NULL;
+			fprintf(stderr, "illegal Option: '%s'\n", *argv);
+			exit(1);
 		}
-		fflush(stdout);
-		executed_check_count++;
 	}
-	ch_inf.check_name = NULL;
-	for (void (**ea)(void) = end_all_checks; *ea; ea++) {
-		(*ea)();
+	char *name = strrchr(argv[1], '/');
+	name = name ? name + 1 : argv[1];
+	size_t bin_folder_len = strlen(argv[2]);
+	size_t bin_name_len = strlen(name);
+	if (!strcmp(".c", name + bin_name_len - 2)) {
+		bin_name_len -= 2;
 	}
+	size_t bin_len = bin_folder_len + bin_name_len + 1;
+	char *bin_file = malloc(bin_len);
+	if (!bin_file) {
+		err(1, "could not allocate enugh memory for the binary file path!");
+	}
+	memcpy(bin_file, argv[2], bin_folder_len);
+	memcpy(bin_file + bin_folder_len, name, bin_name_len);
+	bin_file[bin_folder_len + bin_name_len] = '\0';
+	char *out_file = malloc(bin_len + 2);
+	if (!out_file) {
+		err(1, "could not allocate enugh memory for the output file path!");
+	}
+	memcpy(out_file, bin_file, bin_name_len - 1);
+	out_file[bin_name_len] = '.';
+	out_file[bin_name_len + 1] = 'c';
+	out_file[bin_name_len + 2] = '\0';
+	*in = argv[1];
+	*out0 = out_file;
+	*out1 = bin_file;
+}
+
+static inline void compile(char *in, char *out0, char *out1) {
+	pid_t cpid = fork();
+	if (cpid == -1) {
+		err(1, "could not fork");
+	} else if (cpid == 0) {
+		parse_check(in, out0);
+	} else {
+		wait_for_normal_exit(cpid);
+	}
+	cpid = fork();
+	if (cpid == -1) {
+		err(1, "could not fork");
+	} else if (cpid == 0) {
+		char **args =
+				{ program_invocation_name,
+						no_include ? "-I/usr/include/" : "-Iexp/include/", "-o",
+						out1,
+						generate_obj_file ? "-c" :
+						use_static_c_hacker ?
+								"-L~/git/C-Hacker/exp/static/libc-hacker.a" :
+								"-L~/git/C-Hacker/exp/shared/libc-hacker.so",
+						out0, NULL };
+		execv(program_invocation_name, args);
+	} else {
+		wait_for_normal_exit(cpid);
+	}
+}
+
+static inline void execute_check(char *check_file) {
+	char *(args[]) = { check_file, NULL };
+	execv(check_file, args);
+}
+
+static inline void wait_for_normal_exit(pid_t pid) {
+	while (1) {
+		int status;
+		waitpid(pid, &status, 1);
+		if (WIFCONTINUED(status) || WIFSTOPPED(status)) {
+			continue;
+		} else if (WIFSIGNALED(status)) {
+			fprintf(stderr, "child terminated because of signal %d",
+					WTERMSIG(status));
+		} else if (WIFEXITED(status) && !WEXITSTATUS(status)) {
+			return;
+		} else if (WIFEXITED(status)) {
+			fprintf(stderr, "child terminated with exit code %d",
+					WEXITSTATUS(status));
+		} else {
+			fprintf(stderr, "unknown result of waitpid: %d", status);
+		}
+		exit(2);
+	}
+}
+
+static inline void parse_check(const char *in, const char *out) {
+	exit(1); // TODO
 }
