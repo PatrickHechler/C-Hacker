@@ -4,7 +4,7 @@ LDFLAGS =
 
 CHECKLDFLAGS = 
 
-EXELDFLAGS =
+EXELDFLAGS = -ldl
 
 CC = gcc
 
@@ -31,21 +31,19 @@ BIN = $(BIN_ROOT)$(BUILD_MODE)/
 
 EXE_BIN = $(BIN)exe/
 
-GEN_BIN = $(BIN)generated/
+LIB_BIN = $(BIN)lib/
 
-CHECK_BIN = $(BIN)checks/
+CHECK_BIN = $(BIN)check/
 
 SOURCE = $(PROJECT_ROOT)src/
 
 LIB_SRC = $(SOURCE)lib/
 
-GEN_SRC = $(SOURCE)generated/
-
 EXE_SRC = $(SOURCE)exe/
 
-CHECK_SRC = $(SOURCE)checks/
+CHECK_SRC = $(SOURCE)check/
 
-CHECK_SRC_FILE = $(CHECK_SRC)c-hacker-checks.c
+CHECK_SRC_FILE = $(CHECK_SRC)checks.c
 
 TARGET_EXE = $(BIN_ROOT)c-hacker
 
@@ -55,14 +53,9 @@ TARGET_SO = $(BIN_ROOT)libc-hacker.so
 
 EXE_OBJS = $(EXE_BIN)c-hacker.o
 
-LIB_SOURCE_FILE = $(LIB_SRC)c-hacker.c
-
-LIB_GENERATED_FILE = $(GEN_SRC)c-hacker.c
-
-LIB_GENERATED_OBJ_FILE = $(GEN_BIN)c-hacker.o
+LIB_OBJS = $(LIB_BIN)c-hacker.o
 
 all:	INIT check static shared exe
-	$(TARGET_EXE) $(CHECK_TARGET)
 
 exe: INIT $(TARGET_EXE)
 
@@ -70,13 +63,14 @@ static: INIT exe $(TARGET_A)
 
 shared: INIT exe $(TARGET_SO)
 
-check: INIT shared exe
-	$(TARGET_EXE) --no-include "--func-pre=extern " $(CHECK_SRC_FILE) $(CHECK_BIN)
+check: INIT_CHECK shared exe
+	echo check now
+	$(TARGET_EXE) --no-include --no-exe '--func-pre=extern void ' $(CHECK_SRC_FILE) $(CHECK_BIN)
+	$(TARGET_EXE) --check=$(CHECK_BIN)checks
 
 INIT:
 	echo build mode: $(BUILD_MODE)
 	mkdir -p $(EXP)
-	ln --symbolic --force $(PROJECT_ROOT)include/ $(EXP)include
 
 INIT_CHECK:
 	mkdir -p $(CHECK_BIN)
@@ -87,7 +81,7 @@ INIT_EXE:
 
 INIT_LIB:
 	mkdir -p $(LIB_BIN)
-	mkdir -p $(GEN_SRC)
+	ln --symbolic --force $(SOURCE)include/ $(EXP)include
 
 INIT_SO: INIT_LIB
 	mkdir -p $(EXP)shared/
@@ -96,24 +90,22 @@ INIT_A: INIT_LIB
 	mkdir -p $(EXP)static/
 
 $(TARGET_EXE):	INIT_EXE $(EXE_OBJS)
+	echo make target: exe
 	$(CC) $(EXELDFLAGS) -o $(TARGET_EXE) $(EXE_OBJS)
 	ln --symbolic --force $(TARGET_EXE) $(EXP)exe/c-hacker
 
-$(CHECK_TARGET):	INIT_CHECK $(CHECK_OBJS) $(TARGET_SO)
-	$(CC) -o $@ $(CHECKLDFLAGS) $(CHECK_OBJS)
-
-$(LIB_GENERATED_FILE): 
-	$(TARGET_EXE) --no-include --gen-obj '--func-pre=extern ' $(CHECK_SRC_FILE) $(CHECK_BIN)
-
-$(TARGET_SO):	INIT_SO $(LIB_GENERATED_OBJ_FILE)
-	$(CC) -shared -o $@ $(LDFLAGS) $(LIB_GENERATED_OBJ_FILE)
+$(TARGET_SO):	INIT_SO $(LIB_OBJS)
+	echo make target: shared
+	$(CC) -shared -o $@ $(LDFLAGS) $(LIB_OBJS)
 	ln --symbolic --force $(TARGET_SO) $(EXP)shared/libc-hacker.so
 
-$(TARGET_A):	INIT_A $(LIB_GENERATED_FILE)
-	$(AR) -rc $@ $(LIB_GENERATED_OBJ_FILE)
+$(TARGET_A):	INIT_A $(LIB_OBJS)
+	echo make target: static
+	$(AR) -rc $@ $(LIB_OBJS)
 	ln --symbolic --force $(TARGET_SO) $(EXP)static/libc-hacker.a
 
 $(BIN)%.o:	$(SOURCE)%.c
+	echo compile source file $<
 	$(CC) -x c -c $(CFLAGS) -o $@ $<
 
 clean:
